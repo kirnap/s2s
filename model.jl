@@ -44,6 +44,7 @@ function initstates(atype, layerconfig, batchsize)
         states[2k] = zeros(batchsize, layerconfig[k])
     end
 
+    # initialize decoder states
     for k=1:len
         states[2k-1+2len] = zeros(batchsize, layerconfig[k])
         states[2k + 2len] = zeros(batchsize, layerconfig[k])
@@ -78,9 +79,41 @@ function forward(parameters, states, input)
 end
 
 
-function loss(parameters, states, inputseq, outputseq)
+function loss(parameters, states, inputseq, outseq)
     total = 0.0
     count = 0.0
     atype = typeof(AutoGrad.getval(parameters[1]))
+    hlayers = length(states)/4
+    hlayers = convert(Int, hlayers)
+
+    # go through the encoder
+    enstates = states[1:2hlayers]
+    final_hidden = nothing
+    for i=1:length(inputseq)
+        input = convert(atype, inputseq[i])
+        x = input * parameters[end-1]
+        final_hidden = forward(parameters[1:2hlayers], enstates, x)
+    end
+
+    # initialize the hidden state of the decoder, decstates[1] is the initial hidden of decoder lstm
+    decstates = states[2hlayers+1:4hlayers]
+    decstates[1] = final_hidden
+
+    pc1 = decstates[2]
+    ph1 = decstates[1]
     
+    # go through the decoder
+    for i=1:length(outseq)
+        input = convert(atype, outseq[i])
+        x = input * parameters[end]
+        hidden = forward(parameters[2hlayers+1:4hlayers], decstates, x)
+        ypred = hidden * parameters[end-2] .+ parameters[end-3]
+        ynorm = logp(ypred, 2)
+        ygold = convert(atype, outseq[i])
+        count += size(ygold, 1)
+        total += sum(ygold .* ynorm)
+    end
+    return - total / count
 end
+
+lossgradient = grad(loss)
