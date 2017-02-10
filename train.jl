@@ -32,6 +32,7 @@ function update!(param, state, inputseq, outputseq; lr=1.0, gclip=0.0)
 
 end
 
+
 function train!(param, state, data, o)
     for sequence in data
         update!(param, state, sequence, sequence; lr=o[:lr], gclip=o[:gclip])

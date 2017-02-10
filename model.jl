@@ -100,13 +100,13 @@ function loss(parameters, states, inputseq, outseq)
     decstates[1] = final_hidden
     
     # go through the decoder
-    for i=1:length(outseq)
+    for i=1:length(outseq)-1
         input = convert(atype, outseq[i])
         x = input * parameters[end]
         hidden = forward(parameters[2hlayers+1:4hlayers], decstates, x)
         ypred = hidden * parameters[end-2] .+ parameters[end-3]
         ynorm = logp(ypred, 2)
-        ygold = convert(atype, outseq[i])
+        ygold = convert(atype, outseq[i+1])
         count += size(ygold, 1)
         total += sum(ygold .* ynorm)
     end
