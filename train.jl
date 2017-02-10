@@ -84,12 +84,39 @@ function main(args=ARGS)
     params = initparams(o[:atype], o[:layerconfig], o[:encembed], o[:decembed], invocab, outvocab, o[:winit])
     states = initstates(o[:atype], o[:layerconfig], o[:batchsize])
 
+    # initial loss values
     inloss = test(params, states, tdata; perp=true)
     println("Initial loss is $inloss")
+    devloss = test(params, states, ddata; perp=true)
+    println("Initial devloss is $devloss")
+    devlast = devbest = devloss
+
+    # training started
     for epoch=1:o[:epochs]
         train!(params, states, tdata, o)
-        trainloss = test(params, states, tdata; perp=true)
-        println("Loss after epoch $epoch: $trainloss")
+        devloss = test(params, states, ddata; perp=true)
+        println("Dev loss for epoch $epoch: $devloss")
+
+        if (epoch % 5) == 0
+            trainloss = test(params, states, tdata; perp=true)
+            println("\nTrain loss after epoch $epoch: $trainloss\n")
+        end
+
+        # check whether model becomes better
+        if devloss < devbest
+            devbest = devloss
+            if o[:savefile] != nothing
+                saveparam = map(p->convert(Array{Float32}, p), params)
+                save(o[:savefile], "model", saveparam, "invocab", tdata.word_to_index, "config", o)
+            end
+        end
+
+        if devloss > devlast
+            o[:lr] *= o[:decay]
+            info("New learning rate: $(o[:lr])")
+        end
+        devlast = devloss
+        flush(STDOUT)
     end
 end
 
