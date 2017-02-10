@@ -98,9 +98,6 @@ function loss(parameters, states, inputseq, outseq)
     # initialize the hidden state of the decoder, decstates[1] is the initial hidden of decoder lstm
     decstates = states[2hlayers+1:4hlayers]
     decstates[1] = final_hidden
-
-    pc1 = decstates[2]
-    ph1 = decstates[1]
     
     # go through the decoder
     for i=1:length(outseq)
