@@ -56,7 +56,7 @@ function test_lossgradient(parameters, states, inputseq, outputseq)
 end
 
 
-function test_loss_test(param, state, data; perp=false)
+function test_loss_test(param, state, data; perp=true)
     totloss = 0.0
     numofbatch = 0
     for sequence in data
@@ -86,11 +86,54 @@ function train!(param, state, data)
 end
 
 
+function tokenize1(vocabulary, prediction)
+    index = findmax(prediction)[2]
+    return filter(x->vocabulary[x] == index, collect(keys(vocabulary)))[1]
+end
+
+
+function test_train(params, states, data)
+    inloss = test_loss_test(params, states, data; perp=true)
+    println("initial loss is $inloss")
+    for epoch=1:20
+        train!(params, states, data)
+        y = test_loss_test(params, states, data; perp=true)
+        println("loss after epoch $epoch: $y")
+    end
+    info("training test worked")
+end
+
+
+function test_tokenize(data)
+    correct = ["<s>", "The", "dog", "ran", "out", "of", "memory", "</s>"]
+    indexes = Any[]
+    for item in correct
+        push!(indexes, data.word_to_index[item])
+    end
+
+    # generate fake numeric sequence
+    t_sequence = Any[]
+    for i=1:length(indexes)
+        k = rand(1, length(data.word_to_index))
+        k[indexes[i]] = 1
+        push!(t_sequence, k)
+    end
+
+    # correct version of the sequence is known in advance for the test purposes
+    for i=1:length(t_sequence)
+        word = tokenize1(data.word_to_index, t_sequence[i])
+        @assert(word == correct[i])
+    end
+    info("tokenize test is passed")
+end
+
+
 function test()
     # create simple test data
-    data = Data("readme_data.txt";batchsize=1)
+    batchsize = 3
+    data = Data("readme_data.txt";batchsize=batchsize)
     seqs=Any[]; for item in data;push!(seqs, item);end;
-    sequence = seqs[1] # <s> The dog ran out of memory </s>
+    sequence = seqs[2] # <s> The dog ran out of memory </s>
     
     vsize = length(data.word_to_index)
     
@@ -101,8 +144,7 @@ function test()
     invocab = vsize
     outvocab = vsize
     winit = 0.1
-    global batchsize = 1 
-    global atype = eval(parse("Array{Float32}"))
+    atype = eval(parse("Array{Float32}"))
 
     # initialization test
     test_initparams(layerconfig, encembed, decembed, invocab, outvocab, winit, atype)
@@ -113,16 +155,13 @@ function test()
     states = initstates(atype, layerconfig, batchsize)
     
     # loss implementation test
-    @show states[1]
     test_loss(params, states, sequence, sequence)
-    @show states[1]
-    #test_lossgradient(params, states, sequence, sequence)
-    inloss = test_loss_test(params, states, data; perp=true)
-    println("initial loss is $inloss")
-    for epoch=1:20
-        train!(params, states, data)
-        y = test_loss_test(params, states, data; perp=true)
-        println("loss after epoch $epoch: $y")
-    end
+    #test_loss_test(params, states, data)
+
+    # gradient calculation test
+    # test_lossgradient(params, states, sequence, sequence)
+
+    # tokenization test
+    test_tokenize(data)
 end
 test()
