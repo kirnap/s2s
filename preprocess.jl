@@ -167,6 +167,7 @@ function ibuild_sentence(tdata::Data, sequence::Array{BitArray{2},1}, kth::Int)
     sentence = Array{Any, 1}()
     for i=1:length(sequence)
         z = find(x->x==true, sequence[i][kth,:])
+        @assert(length(z) == 1) 
         append!(sentence, z)
     end
     ret = map(x->tdata.index_to_word[x], sentence)
